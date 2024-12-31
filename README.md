@@ -16,7 +16,7 @@ pip install navvy
 from navvy import Navvy
 
 # Initialize Navvy
-navvy = Navvy(project_path="./repo_project_path", api_key="your_openai_api_key")
+navvy = Navvy(project_path="./repo_project_path", model="gpt-4o", api_key="your_openai_api_key")
 
 # Send a message to create a snake game
 chunks = navvy.send_message("Create a snake game!")
