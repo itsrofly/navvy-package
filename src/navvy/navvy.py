@@ -92,6 +92,7 @@ class Navvy:
     '''Public methods'''
 
     def send_message(self, message):
+        # Get clean chat history
         chat = self.get_chat_history()
 
         # Add files from repo to the chat
@@ -106,10 +107,10 @@ class Navvy:
             "content": "files:" + file_contents
         })
 
-        # Add last 3 commits messages to the chat
+        # Add all commits for context
         chat.append({
             "role": "system",
-            "content": "Last three commits:" + str(list(self.repo.iter_commits(max_count=3)))
+            "content": "Last three commits:" + str(list(self.repo.iter_commits()))
         })
 
         chat.append({
@@ -121,6 +122,8 @@ class Navvy:
             "role": "user",
             "content": message
         })
+
+        # functions to call
         functions = []
 
         response = self.client.chat.completions.create(
@@ -148,6 +151,7 @@ class Navvy:
                     functions[tool_call.index]["name"] = function.name
                 if function.arguments:
                     functions[tool_call.index]["arguments"] += function.arguments
+                yield function.arguments
 
         for function in functions:
             function_name = function["name"]
@@ -155,10 +159,8 @@ class Navvy:
 
             if (function_name == "edit_file"):
                 self.__edit_file(**function_arguments)
-                yield f"\nModified file: {os.path.basename(function_arguments['file_path'])}"
             elif (function_name == "delete_file"):
                 self.__delete_file(**function_arguments)
-                yield f"\nRemoved file: {os.path.basename(function_arguments['file_path'])}"
 
     def get_chat_history(self):
         return self.chat_history.copy()
@@ -223,8 +225,6 @@ class Navvy:
         if complete_path.exists():
             # Delete the file
             os.remove(complete_path)
-        else:
-            print(f"File not found: {self.project_path / file_path}")
 
         self.repo.git.add(update=True)
         # Commit the changes

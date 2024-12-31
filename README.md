@@ -1,0 +1,1 @@
+The navvy package is a Python-based automation tool for managing Git repositories. It leverages the OpenAI API to perform tasks such as editing, creating, and deleting files within a repository.
