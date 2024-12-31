@@ -1,7 +1,0 @@
-navvy.py
-setup.py
-navvy.egg-info/PKG-INFO
-navvy.egg-info/SOURCES.txt
-navvy.egg-info/dependency_links.txt
-navvy.egg-info/requires.txt
-navvy.egg-info/top_level.txt
