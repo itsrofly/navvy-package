@@ -48,8 +48,8 @@ navvy.undo_commit_changes(commit_id)
 ```python
 Navvy(
     agent: Agent, # LLM https://ai.pydantic.dev/agents/
-    project_path: str, # Repository path, if no repository is found a new one will be created.
-    project_url: str = None, # If provided, it will be used to clone a repository from the URL to the specified project_path.
+    project_path: str, # Repository path, if no repository is found a new one will be created
+    project_url: str = None, # If provided, it will be used to clone a repository from the URL to the specified project_path
     author: str = "Navvy", # Commit author name
     author_address: str = "github.com/itsrofly/navvy-package" # Commit author address
 )
