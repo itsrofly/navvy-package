@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "navvy"
-version = "2.0.0"
-description = "Automation tool for managing Git repositories with AI (OpenAI)."
+version = "2.0.1"
+description = "Automation tool for managing Git repositories with LLMs."
 readme = "README.md"
 authors = [{ name = "Rofly António", email = "mitangerofly@gmail.com" }]
 license = { file = "LICENSE" }
