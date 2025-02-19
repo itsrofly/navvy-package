@@ -1,176 +1,46 @@
 import os
-import json
 from git import Repo
+from git import Actor
 from pathlib import Path
-from openai import OpenAI
-from typing import Iterator
+from pydantic_ai import Agent
 
 
 class Navvy:
-    __tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "edit_file",
-                "description": """
-                    Use this function to edit/create the contents of files.
-                    """,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "file_path": {
-                            "type": "string",
-                            "description": """The path to the file you want to edit.""",
-                        },
-                        "file_content": {
-                            "type": "string",
-                            "description": """The new content of the file.""",
-                        },
-                        "commit_message": {
-                            "type": "string",
-                            "description": """The message for the commit.""",
-                        }
-                    },
-                    "required": ["file_path", "file_content", "commit_message"],
-                },
-            }
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "delete_file",
-                "description": """
-                    Use this function to delete files.
-                    """,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "file_path": {
-                            "type": "string",
-                            "description": """The path to the file you want to delete.""",
-                        },
-                        "commit_message": {
-                            "type": "string",
-                            "description": """The message for the commit.""",
-                        }
-                    },
-                    "required": ["file_path", "commit_message"],
-                },
-            }
-        }
-    ]
+    agent: Agent
 
-    def __init__(self, project_path, model="gpt-4o", system_messages=None, api_key=None) -> None:
+    def __init__(self, agent: Agent, project_path: str, project_url: str = None, author: str = "Navvy", author_address: str = "github.com/itsrofly/navvy-package") -> None:
         # Set the project path
         self._project_path = Path(project_path).resolve()
-        self._repo = Repo(self._project_path)
-        self._model = model
-        self._system_messages = system_messages
 
-        if (not self._repo.head.is_valid()):
-            initial_commit_file = self._project_path / ".gitkeep"
-            initial_commit_file.touch()
-            self._repo.index.add([initial_commit_file])
-            self._repo.index.commit("Starting Repository")
+        # Clone the project from the URL if provided
+        if (project_url):
+            self._repo = Repo.clone_from(project_url, self._project_path)
+        else:
+            try:  # Try loading the existing repository
+                self._repo = Repo(self._project_path)
+            except:
+                # Initialize a new repository
+                self._repo = Repo.init(self._project_path)
+                # Create gitkeep file
+                initial_commit_file = self._project_path / ".gitkeep"
+                initial_commit_file.touch()
+                # Add and commit the initial commit file
+                self._repo.index.add([initial_commit_file])
+                self._repo.index.commit(
+                    "Starting Repository", author=Actor(author, author_address))
 
-        if (not self._system_messages):
-            self._system_messages = [
-                {
-                    "role": "system",
-                    "content": """
-                        You are a Software Developer, your job is to develop software.
-                        """
-                }
-            ]
+        # Set the agent
+        self.agent = agent
 
-        # Initialize IA Chatbot
-        self.client = OpenAI(
-            api_key=api_key if api_key else os.getenv("OPENAI_API_KEY")
-        )
-        self.clear_chat_history()
+        # Decorate the instance methods after self.agent is available
+        self.__get_all_file_contents = self.agent.system_prompt(
+            self.__get_all_file_contents)
+        self.__get_all_commits_messages = self.agent.system_prompt(
+            self.__get_all_commits_messages)
+        self.__edit_file = self.agent.tool_plain(self.__edit_file)
+        self.__delete_file = self.agent.tool_plain(self.__delete_file)
 
     '''Public methods'''
-
-    def send_message(self, message) -> Iterator[str]:
-        # Get clean chat history
-        chat = self.get_chat_history()
-
-        # Add files from repo to the chat
-        # Don't save directly to the chat history because the files can change and it's more economical.
-        file_contents = self.__get_all_file_contents(
-            self._repo.head.commit.tree)
-        if not file_contents:
-            file_contents = "No files in the repository."
-
-        chat.append({
-            "role": "system",
-            "content": "files:" + file_contents
-        })
-
-        # Add all commits for context
-        chat.append({
-            "role": "system",
-            "content": "Last three commits:" + str(list(self._repo.iter_commits()))
-        })
-
-        chat.append({
-            "role": "user",
-            "content": message
-        })
-
-        self._chat_history.append({
-            "role": "user",
-            "content": message
-        })
-
-        # functions to call
-        functions = []
-
-        response = self.client.chat.completions.create(
-            messages=chat,
-            model=self._model,
-            tools=self.__tools,
-            stream=True
-        )
-
-        for chunk in response:
-            delta = chunk.choices[0].delta
-
-            if delta.content:
-                yield delta.content
-
-            elif delta.tool_calls:
-                tool_call = delta.tool_calls[0]
-                function = tool_call.function
-
-                if (tool_call.index == len(functions)):
-                    functions.append({
-                        "name": None,
-                        "arguments": ""
-                    })
-
-                if function.name:
-                    functions[tool_call.index]["name"] = function.name
-                if function.arguments:
-                    functions[tool_call.index]["arguments"] += function.arguments
-
-                yield function.arguments
-
-        for function in functions:
-            function_name = function["name"]
-            function_arguments = json.loads(function["arguments"])
-
-            if (function_name == "edit_file"):
-                self.__edit_file(**function_arguments)
-            elif (function_name == "delete_file"):
-                self.__delete_file(**function_arguments)
-
-    def get_chat_history(self):
-        return self._chat_history.copy()
-
-    def clear_chat_history(self) -> None:
-        # Add system messages to the chat history
-        self._chat_history = self._system_messages.copy()
 
     def undo_commit_changes(self, commit_id=None) -> None:
         if (not commit_id):
@@ -185,13 +55,15 @@ class Navvy:
             ["git", "checkout", str(self._project_path / ".")])
         self._repo.git.execute(["git", "clean", "-fdx"])
 
-    def get_all_commits_ids(self):
+    def get_all_commits(self):
         # Get all commit ids (hexsha) & commit messages
         return [(commit.hexsha, commit.message) for commit in self._repo.iter_commits()]
 
     '''Private methods'''
 
-    def __get_all_file_contents(self, root):
+    def __get_all_file_contents(self) -> str:
+        root = self._repo.head.commit.tree
+
         contents = []
         for entry in root.traverse():
             if entry.type == 'blob':  # Check if the entry is a file
@@ -203,9 +75,14 @@ class Navvy:
                         contents.append(f'File:{file_path}\n{file_content}\n')
                 except Exception as e:
                     print(f"Error reading {file_path}: {e}")
+        if (not contents):
+            return "No files found"
         return "\n".join(contents)
 
-    def __edit_file(self, file_path, file_content, commit_message):
+    def __get_all_commits_messages(self) -> str:
+        return str([commit.message for commit in self._repo.iter_commits()])
+
+    def __edit_file(self, file_path: str, file_content: str, commit_message: str) -> str:
         # Ensure the directory exists
         complete_path = self._project_path / file_path
         os.makedirs(complete_path.parent, exist_ok=True)
@@ -219,8 +96,9 @@ class Navvy:
 
         # Commit the changes
         self._repo.index.commit(commit_message)
+        return commit_message
 
-    def __delete_file(self, file_path, commit_message):
+    def __delete_file(self, file_path: str, commit_message: str) -> str:
         # Delete the file
         complete_path = (self._project_path / file_path)
 
@@ -232,3 +110,4 @@ class Navvy:
         self._repo.git.add(update=True)
         # Commit the changes
         self._repo.index.commit(commit_message)
+        return commit_message

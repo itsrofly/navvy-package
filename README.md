@@ -1,6 +1,6 @@
 # Navvy
 
-The navvy package is a Python-based automation tool for managing Git repositories. It leverages the OpenAI API to perform tasks such as editing, creating, and deleting files within a repository.
+The navvy package is a Python-based automation tool for managing Git repositories. It utilizes the [PydanticAI](https://ai.pydantic.dev/) framework, enabling compatibility with any provider or model while maintaining structure and most of the wording. It facilitates tasks like evaluating, editing, creating, and deleting files within a repository.
 
 ## Installation
 
@@ -14,39 +14,44 @@ pip install navvy
 
 ```python
 from navvy import Navvy
+from pydantic_ai import Agent
 
-# Initialize Navvy
-navvy = Navvy(project_path="./repo_project_path", model="gpt-4o", api_key="your_openai_api_key")
+# Create an agent using pydantic_ai, accordance with the user's preferences.
+agent = Agent(  
+    'openai:gpt-4o-mini',
+    system_prompt=(
+        'You are a software engineer working on a project. You have made some changes to the codebase and committed them. '
+    ),
+)
+# Create a Navvy instance
+navvy = Navvy(agent, "./snake_game")
 
-# Send a message to create a snake game
-chunks = navvy.send_message("Create a snake game!")
+# Run the agent, accordance with the user's preferences.
+result = agent.run_sync("Create a snake game.")
 
-for chunk in chunks:
-    print(chunk, end="", flush=True)
+print(result.data) # Agent response
+print(navvy.get_all_commits()) # Show all commits made by Navvy
 ```
 
 Here is an example of how to undo a commit using the Navvy package:
 
 ```python
-from navvy import Navvy
-
-# Initialize Navvy
-# Using OPENAI_API_KEY environment variable
-navvy = Navvy(project_path="./repo_project_path") 
-
-# Send a message to create a snake game
-chunks = navvy.send_message("Create a snake game!")
-
-for chunk in chunks:
-    print(chunk, end="", flush=True)
-
 # Undo the last commit
 navvy.undo_commit_changes()
+```
+
+## API 
+```python
+Navvy(
+    agent: Agent, # LLM
+    project_path: str, # Repository path, if no repository is found a new one will be created.
+    project_url: str = None, # If provided, it will be used to clone a repository from the URL to the specified project_path.
+    author: str = # Commit author name
+    author_address: str # Commit author address
+)
 ```
 
 ## Requirements
 
 Git            
 Python 3.8 or higher.
-
-Note: The project path need be initialized with Git.
