@@ -42,7 +42,7 @@ class Navvy:
 
     '''Public methods'''
 
-    def undo_commit_changes(self, commit_id=None) -> None:
+    def undo_commit_changes(self, commit_id: str = None) -> None:
         if (not commit_id):
             last_commits = list(self._repo.iter_commits(max_count=2))
             last_element = last_commits[-1]

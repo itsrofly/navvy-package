@@ -38,15 +38,19 @@ Here is an example of how to undo a commit using the Navvy package:
 ```python
 # Undo the last commit
 navvy.undo_commit_changes()
+
+# Undo the last commit using commit id
+commit_id: str
+navvy.undo_commit_changes(commit_id)
 ```
 
 ## API 
 ```python
 Navvy(
-    agent: Agent, # LLM
+    agent: Agent, # LLM https://ai.pydantic.dev/agents/
     project_path: str, # Repository path, if no repository is found a new one will be created.
     project_url: str = None, # If provided, it will be used to clone a repository from the URL to the specified project_path.
-    author: str = "Navvy" # Commit author name
+    author: str = "Navvy", # Commit author name
     author_address: str = "github.com/itsrofly/navvy-package" # Commit author address
 )
 ```
