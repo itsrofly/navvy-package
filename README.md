@@ -46,8 +46,8 @@ Navvy(
     agent: Agent, # LLM
     project_path: str, # Repository path, if no repository is found a new one will be created.
     project_url: str = None, # If provided, it will be used to clone a repository from the URL to the specified project_path.
-    author: str = # Commit author name
-    author_address: str # Commit author address
+    author: str = "Navvy" # Commit author name
+    author_address: str = "github.com/itsrofly/navvy-package" # Commit author address
 )
 ```
 
